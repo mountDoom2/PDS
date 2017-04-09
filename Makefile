@@ -1,10 +1,10 @@
 CXXFLAGS =	-O2 -g -Wall -fmessage-length=0
 
-OBJS =		PDS_1.o
+OBJS =		PDS.o
 
 LIBS =
 
-TARGET =	PDS_1
+TARGET =	PDS
 
 $(TARGET):	$(OBJS)
 	$(CXX) -o $(TARGET) $(OBJS) $(LIBS)
