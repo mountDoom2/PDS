@@ -24,6 +24,7 @@
 *.lib
 
 # Executables
+*.xml
 *.exe
 *.out
 *.app
