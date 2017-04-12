@@ -48,6 +48,7 @@ int main (int argc, char **argv)
 		return 1;
 
 	}
+
 	NetworkScanner scanner;
 	scanner.scan(interface);
 	scanner.write(filename);
