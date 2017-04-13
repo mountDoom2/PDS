@@ -26,6 +26,9 @@
 #define debug(x...);
 #endif
 
+int read_arp(int fd);
+
+
 class NetworkScanner{
 
 public:
@@ -39,11 +42,17 @@ private:
 	int socketd;
 	unsigned char mac[6];
 	unsigned int ipv4;
+	unsigned int iface_index;
+	unsigned int subnet_mask;
 	int ipv6;
 	bool socket_opened;
 	void loadInterfaceInfo(char *iname);
+	//void buildARPRequest(struct arp_header *arp);
+	void buildARPRequest(struct arp_header *arp, unsigned int dst_ip);
 	void openSocket(int packetType, int socketType, int unknown);
 	void closeSocket();
+	unsigned int reorderIPv4(unsigned int ip);
+	void printIPv4(unsigned int ip);
 };
 
 struct arp_header{
@@ -52,10 +61,10 @@ struct arp_header{
     unsigned char hw_addr_len;
     unsigned char pt_addr_len;
     unsigned short opcode;
-    unsigned char sha[6];
-    unsigned char spa[4];
-    unsigned char tha[6];
-    unsigned char tpa[4];
+    unsigned char source_mac[6];
+    unsigned char source_ip[4];
+    unsigned char target_mac[6];
+    unsigned char target_ip[4];
 };
 
 
