@@ -21,39 +21,20 @@
 #include <linux/if_arp.h>
 
 #ifdef DEBUG
-#define debug(x...) printf("DEBUG: ");printf(x);printf("\n");
+#define debug(x...); printf("DEBUG: ");printf(x);printf("\n");
 #else
 #define debug(x...);
 #endif
 
-int read_arp(int fd);
-
-
-class NetworkScanner{
-
-public:
-	char *interface;
-	NetworkScanner();
-	void scan(char *iface);
-	void write(char *filename);
-	struct ifreq ifr;
-
-private:
-	int socketd;
-	unsigned char mac[6];
-	unsigned int ipv4;
-	unsigned int iface_index;
-	unsigned int subnet_mask;
-	int ipv6;
-	bool socket_opened;
-	void loadInterfaceInfo(char *iname);
-	//void buildARPRequest(struct arp_header *arp);
-	void buildARPRequest(struct arp_header *arp, unsigned int dst_ip);
-	void openSocket(int packetType, int socketType, int unknown);
-	void closeSocket();
-	unsigned int reorderIPv4(unsigned int ip);
-	void printIPv4(unsigned int ip);
-};
+// IPv4 defines
+#define PROTO_ARP 0x0806
+#define ETH2_HEADER_LEN 14
+#define HW_TYPE 1
+#define MAC_LENGTH 6
+#define IPV4_LENGTH 4
+#define ARP_REQUEST 0x01
+#define ARP_REPLY 0x02
+#define BUF_SIZE 60
 
 struct arp_header{
     unsigned short hwtype;
@@ -65,6 +46,43 @@ struct arp_header{
     unsigned char source_ip[4];
     unsigned char target_mac[6];
     unsigned char target_ip[4];
+};
+
+struct interface{
+	unsigned char mac[6];
+	unsigned int index;
+	unsigned int hostip;
+	unsigned int subnet_mask;
+	unsigned int network;
+};
+
+int read_arp(int fd);
+
+
+class NetworkScanner{
+
+public:
+	char *iname;
+	NetworkScanner();
+	void scan(char *iface);
+	void write(char *filename);
+	//struct ifreq ifr;
+
+private:
+	int socketd;
+	interface iface;
+
+	unsigned int recv_timeout_s;
+	int ipv6;
+	bool socket_opened;
+	void loadInterfaceInfo(char *iname);
+	void sendARPRequest(unsigned int dst);
+	void receiveARPRequest();
+	void scanIpv4Hosts();
+	void openSocket(int packetType, int socketType, int unknown);
+	void closeSocket();
+	unsigned int reorderIPv4(unsigned int ip);
+	void printIPv4(unsigned int ip);
 };
 
 
