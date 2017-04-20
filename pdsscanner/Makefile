@@ -1,4 +1,4 @@
-CXXFLAGS =	-O2 -g -Wall -fmessage-length=0
+CXXFLAGS =	-O0 -g -Wall -fmessage-length=0 -pthread -std=c++11
 SRC = 		$(wildcard *.cpp)
 OBJS =		$(wildcard *.o)
 LIBS =		scanner.h 
