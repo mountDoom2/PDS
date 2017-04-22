@@ -14,10 +14,13 @@
 #include <map>
 #include <unistd.h>
 #include <thread>
-
+#include <signal.h>
 #include <vector>
 #include <string>
 #include <algorithm>
+
+#include <libxml/tree.h>
+#include <libxml/parser.h>
 
 #include <asm/types.h>
 
@@ -135,8 +138,10 @@ private:
 	bool socket_opened;
 	void loadInterfaceInfo(char *iname);
 	void receiveICMPv6();
+	void printResult();
 	std::vector<string> getLocalIpv6Adresses(char *iface);
-	void sendIcmpv6(char* src, char* dst);
+	//void sendIcmpv6(char* src, char* dst);
+	void sendIcmpv6(const char *src_mac, const char *src_ip, const char *dst_mac, const char *dst_ip);
 	int sendNS(char* src, char* dst);
 	void sendARPRequest(unsigned int dst);
 	void receiveARPRequest();

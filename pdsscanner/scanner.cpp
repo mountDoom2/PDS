@@ -4,6 +4,7 @@
 
 
 using namespace std;
+int _interrupted = 0;
 
 char *string2char(string str){
 	char * writable = new char[str.size() + 1];
@@ -19,7 +20,19 @@ NetworkScanner::NetworkScanner(){
 	recv_timeout_s = 2;
 }
 
+
+void int_handler(int s){
+	_interrupted = 1;
+	printf("INTERRUPTED\n");
+}
+
 void NetworkScanner::scan(char *iname){
+	struct sigaction sig_handler;
+	sig_handler.sa_handler = int_handler;
+	sigemptyset(&sig_handler.sa_mask);
+	sig_handler.sa_flags = 0;
+	sigaction(SIGINT, &sig_handler, NULL);
+
 	this->openSocket(AF_PACKET, SOCK_RAW, ETH_P_ALL);
 	this->loadInterfaceInfo(iname);
 	// Closes old socket and creates new one
@@ -27,7 +40,10 @@ void NetworkScanner::scan(char *iname){
 	this->scanIpv4Hosts(3);
 	this->openSocket(PF_PACKET, SOCK_RAW, ETH_P_ALL);
 	this->scanIpv6Hosts(3);
+	this->printResult();
+}
 
+void NetworkScanner::printResult(){
 	for (auto const& x : this->mac_ip)
 	{
 	    cout << x.first << ": ";
@@ -37,7 +53,6 @@ void NetworkScanner::scan(char *iname){
 	    cout << endl;
 	}
 }
-
 /**
  * Send ARP request to desired address
  */
@@ -59,7 +74,7 @@ void NetworkScanner::sendARPRequest(unsigned int dst){
 	sll.sll_halen = MAC_LENGTH;
 
 	// Configure ethernet header
-	*arp_request.eth.target_mac = L2_BROADCAST;
+	memset(arp_request.eth.target_mac, 0xFF, MAC_LENGTH);
 	memcpy(arp_request.eth.source_mac, this->iface.mac, MAC_LENGTH);
 	arp_request.eth.protocol = htons(ETH_P_ARP);
 
@@ -71,7 +86,7 @@ void NetworkScanner::sendARPRequest(unsigned int dst){
 	arp_request.arp.opcode = htons(ARPOP_REQUEST);
 	memcpy(arp_request.arp.source_mac, this->iface.mac, MAC_LENGTH);
 	memcpy(arp_request.arp.source_ip, &src_ip, sizeof(uint32_t));
-	*arp_request.arp.target_mac = L2_BROADCAST;
+	memset(arp_request.arp.source_mac, 0xFF, MAC_LENGTH);
 	memcpy(arp_request.arp.target_ip, &dst_ip, sizeof(uint32_t));
 
 	// Bind socket
@@ -92,12 +107,15 @@ void NetworkScanner::scanIpv4Hosts(int tries){
 	unsigned int broadcast = this->iface.hostip | (~this->iface.subnet_mask);
 	debug("Net address: %u, broadcast: %u", this->iface.subnet_mask, broadcast);
 	std::thread receiver([=] {receiveARPRequest();});
-	usleep(50);
+
 	for (int i = 0; i < tries; i++){
 		for (unsigned int target = first; target < broadcast; target++){
+			if (_interrupted){
+				break;
+			}
+			usleep(50);
 			this->sendARPRequest(target);
 			// delay between arp requests
-			usleep(50);
 		}
 		usleep(150);
 	}
@@ -144,14 +162,33 @@ void NetworkScanner::scanIpv6Hosts(int tries){
 
 	std::thread receiver([=] {receiveICMPv6();});
 	usleep(50);
+	// Set destination MAC address to multicast
+	char dst_mac[6];
+	memset(dst_mac, 0, 6);
+	dst_mac[0] = 0x33;
+	dst_mac[1] = 0x33;
+	dst_mac[5] = 0x01;
+
+	char dst_ip[IPV6_ADDR_LEN];
+
     for (int i = 0; i < tries; i++){
 		for(vector<string>::const_iterator it=this->iface.hostip6.begin(); it != this->iface.hostip6.end(); it++) {
-			char *address = string2char(*it);
-			this->sendIcmpv6(address, "ff02::1");
+			if (_interrupted){
+				break;
+			}
+
+			char *src_ip = string2char(*it);
+			memset(dst_ip, 0, IPV6_ADDR_LEN);
+			memcpy(dst_ip, "ff02::1", 8);
+			this->sendIcmpv6((char*)this->iface.mac, src_ip, dst_mac, dst_ip);
+			usleep(50);
+			memset(dst_ip, 0, IPV6_ADDR_LEN);
+			memcpy(dst_ip, "ff02::2", 8);
+			this->sendIcmpv6((char*)this->iface.mac, src_ip, dst_mac, dst_ip);
 			//this->sendNS(address, "ff02::1");
-			delete[] address;
+			delete[] src_ip;
 		}
-		usleep(500);
+		usleep(100);
     }
     receiver.join();
 /*
@@ -173,7 +210,8 @@ void NetworkScanner::scanIpv6Hosts(int tries){
 void NetworkScanner::receiveICMPv6(){
 	struct icmpv6_packet *ping_response;
 	uint16_t frame[IP_MAXPACKET];
-	int bytes, i, sckt;
+	unsigned int bytes, i;
+	int sckt = -1;
 	socklen_t sendersize;
 	struct timeval timeout;
 	struct sockaddr sender;
@@ -188,8 +226,11 @@ void NetworkScanner::receiveICMPv6(){
   	timeout.tv_sec = 0;
   	timeout.tv_usec = 500;
   	setsockopt(sckt, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout,sizeof(struct timeval));
-	  i = 0;
-	  while (i <= 1500){
+  	i = 0;
+	while (i <= 1500){
+		if (_interrupted){
+			break;
+		}
 		  i += 1;
 	      memset (frame, 0, IP_MAXPACKET * sizeof (uint8_t));
 	      memset (&sender, 0, sizeof (sender));
@@ -238,20 +279,21 @@ void NetworkScanner::receiveICMPv6(){
 			string _ip6(reinterpret_cast<char*>(src_ip));
 			this->add(&(this->mac_ip), _mac, _ip6);
 	      }
+	if (sckt > 0)
+		close(sckt);
 
 }
 
-void NetworkScanner::sendIcmpv6(char* src, char* dst){
+void NetworkScanner::sendIcmpv6(const char *src_mac, const char *src_ip,
+		const char *dst_mac, const char *dst_ip){
 
 	struct icmpv6_packet ping;
 	memset(&ping, 0, sizeof(struct icmpv6_packet));
 
 	// Configure eth header
 	// Set MAC to multicast
-	ping.eth.target_mac[0] = 0x33;
-	ping.eth.target_mac[1] = 0x33;
-	ping.eth.target_mac[5] = 0x01;
-	memcpy(ping.eth.source_mac, this->iface.mac, MAC_LENGTH);
+	memcpy(ping.eth.target_mac, dst_mac, MAC_LENGTH);
+	memcpy(ping.eth.source_mac, src_mac, MAC_LENGTH);
 	ping.eth.protocol = htons(ETH_P_IPV6);
 
 	// Configure ipv6 header
@@ -261,8 +303,8 @@ void NetworkScanner::sendIcmpv6(char* src, char* dst){
 	ping.ipv6.next_header = IPPROTO_ICMPV6;
 	ping.ipv6.hop_limit = 0xFF; // Set hop limit to maximum
 	// Convert ipv6 strings to bytes
-	inet_pton (AF_INET6, src, ping.ipv6.source_ip);
-	inet_pton (AF_INET6, dst, ping.ipv6.target_ip);
+	inet_pton (AF_INET6, src_ip, ping.ipv6.source_ip);
+	inet_pton (AF_INET6, dst_ip, ping.ipv6.target_ip);
 
 	// Configure icmpv6 header
 	ping.icmpv6.type = ICMP6_ECHO_REQUEST;
@@ -303,6 +345,9 @@ void NetworkScanner::receiveARPRequest(){
 
 	i = 0;
     while (i < 500){
+		if (_interrupted){
+			break;
+		}
     	i += 1;
 		int length = recvfrom(sckt, &arp, 60, 0, NULL, NULL);
 		if (length <= 0) {
@@ -319,7 +364,7 @@ void NetworkScanner::receiveARPRequest(){
 		}
 		// Got ARP reply, reset counter
 		i = 0;
-		usleep(150);
+		//usleep(50);
 
 		// Store mac and ipv4
 		char tmp[15];
@@ -332,24 +377,15 @@ void NetworkScanner::receiveARPRequest(){
 		_mac.insert(4,1,'.');
 		_mac.insert(9,1,'.');
 
+
 		struct in_addr sender_a;
 		memset(&sender_a, 0, sizeof(struct in_addr));
 		memcpy(&sender_a.s_addr, &(arp.arp.source_ip), sizeof(uint32_t));
 		string _ip(reinterpret_cast<char*>(inet_ntoa(sender_a)));
 		this->add(&(this->mac_ip), _mac, _ip);
-		/*
-		if (this->mac_ipv4.count(_mac)){
-			if (find(this->mac_ipv4[_mac].begin(), this->mac_ipv4[_mac].end(),_ip4) == this->mac_ipv4[_mac].end()){
-			   this->mac_ipv4[_mac].push_back(_ip4);
-			}
-
-		}else{
-			this->mac_ipv4[_mac];
-			this->mac_ipv4[_mac].push_back(_ip4);
-		}
-		*/
-
     }
+    if (sckt > 0)
+    	close(sckt);
 }
 
 void NetworkScanner::add(std::map<string, std::vector<string>> *dct, string key, string value){
@@ -466,6 +502,25 @@ void NetworkScanner::printIPv4(unsigned int ip){
 
 void NetworkScanner::write(char *filename){
 	cout << "Filename: " << filename << endl;
+
+	xmlNodePtr node = NULL;
+	xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
+	xmlNodePtr devices = xmlNewNode(NULL, BAD_CAST "devices");
+    xmlDocSetRootElement(doc, devices);
+
+	for (auto const& x : this->mac_ip)
+	{
+	    node = xmlNewChild(devices, NULL, BAD_CAST "host", NULL);
+	    xmlNewProp(node, BAD_CAST "mac", BAD_CAST x.first.c_str());
+
+	    for (auto i = x.second.begin(); i != x.second.end(); ++i){
+			xmlNewChild(node, NULL, BAD_CAST ((signed int)i->find('.') == -1 ? "ipv6" : "ipv4"),
+                    BAD_CAST i->c_str());
+		}
+	    cout << endl;
+	}
+
+    xmlSaveFormatFileEnc(filename, doc, "UTF-8", 1);
 }
 /*
 int NetworkScanner::sendNS(char* src_ip, char* dst_ip){
@@ -725,7 +780,6 @@ uint16_t icmp6_checksum (struct icmpv6_packet packet)
 	char buf[IP_MAXPACKET];
 	char *ptr;
 	int chksumlen = 0;
-	int i;
 
 	ptr = &buf[0];  // ptr points to beginning of buffer buf
 
