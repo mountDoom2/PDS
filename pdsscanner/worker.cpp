@@ -15,6 +15,36 @@ int _interrupted = 0;
  * Utility/conversion functions
  */
 
+int is_valid_ip(char *ip, int type){
+	if (ip == NULL)
+		return 0;
+
+    struct sockaddr_in sa;
+    return inet_pton(type, ip, &(sa.sin_addr));
+}
+
+int is_dotted_mac(char *mac){
+	if (mac == NULL || strlen(mac) != 14)
+		return 0;
+
+	for (int i = 0; i < 14; i++){
+		if (i == 4 || i == 9){
+			if (mac[i] != '.'){
+				return 0;
+			}
+		}else{
+			if (!isxdigit(mac[i])){
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+int is_ip(char *ip){
+	return (is_valid_ip(ip, AF_INET) || is_valid_ip(ip, AF_INET6));
+}
+
 // Convert string to writeable (non-const) char*
 char *string2char(string str){
 	char * writable = new char[str.size() + 1];
@@ -590,21 +620,21 @@ void Worker::loadInterfaceInfo(char *iname){
 	debug("Getting information of interface '%s'", iname)
 	if (strlen(iname) > (IFNAMSIZ - 1)){
 		perror("Interface name is too long");
-		return;
+		exit(1);
 	}
 	debug("Copying interface name to ifreq structure");
 	strncpy(ifr.ifr_name, iname, IFNAMSIZ);
 	debug("Getting interface index");
 	if (ioctl(socketd, SIOCGIFINDEX, &ifr) == -1) {
         perror("Unable to get interface index");
-        return;
+        exit(1);
     }
 	this->iface.index = ifr.ifr_ifindex;
 	debug("Successfully obtained interface index: %d", this->iface.index);
 	debug("Getting source MAC address");
     if (ioctl(socketd, SIOCGIFHWADDR, &ifr) == -1) {
         perror("Unable to get source MAC address");
-        return;
+        exit(1);
     }
 
     memcpy(&this->iface.mac, ifr.ifr_hwaddr.sa_data, 6);
@@ -626,7 +656,6 @@ void Worker::loadInterfaceInfo(char *iname){
     	this->iface.hostip = inet_network(inet_ntoa(in->sin_addr));
     }else{
     	fprintf(stderr, "Not an IPv4\n");
-    	return;;
     }
     debug("Successfully got source IPv4 address: %s", inet_ntoa(in->sin_addr));
 
@@ -643,6 +672,28 @@ void Worker::loadInterfaceInfo(char *iname){
     /////////////////////////////////
     this->iface.hostip6 = this->getLocalIpv6Adresses(iname);
 
+}
+
+void Worker::parseXML(char *filename){
+	xmlDocPtr doc = xmlReadFile(filename, "UTF-8", 0);
+	xmlNodePtr root = NULL, host = NULL, ip = NULL;
+	xmlNodePtr cur_node = NULL;
+
+	root = xmlDocGetRootElement(doc);
+	if (root == NULL){
+		return;
+	}
+	host = root->children;
+	for (cur_node = host; cur_node; cur_node = cur_node->next) {
+		for (ip = cur_node; ip; ip = ip->next){
+
+	       //if (cur_node->type == XML_ELEMENT_NODE) {
+	          printf("node type: Element, name: %s\n",
+	        		  ip->name);
+	       //}
+		}
+	}
+	printf("here\n");
 }
 
 /*
@@ -672,6 +723,17 @@ void Worker::write(char *filename){
  * Perform spoofing on passed victims
  */
 void Worker::spoof(char *iface, char *protocol, unsigned int interval, char *ip1, char *mac1, char *ip2, char *mac2){
+	if (!strcmp(protocol, "arp") && (!is_valid_ip(ip1, AF_INET) || !is_valid_ip(ip2, AF_INET))){
+		fprintf(stderr, "Invalid ip format. Only IPv4 is supported when using arp protocol\n");
+		return;
+	}else if (!strcmp(protocol, "ndp") && (!is_valid_ip(ip1, AF_INET6) || !is_valid_ip(ip2, AF_INET6))){
+		fprintf(stderr, "Invalid ip format. Only IPv6 is supported when using ndp protocol\n");
+		return;
+	}else if (!is_dotted_mac(mac1) || !is_dotted_mac(mac2)){
+		fprintf(stderr, "Invalid format of mac address\n");
+		return;
+	}
+
 	// Register interrupt handler
 	struct sigaction sig_handler;
 	sig_handler.sa_handler = int_handler;
@@ -725,7 +787,7 @@ void Worker::spoof(char *iface, char *protocol, unsigned int interval, char *ip1
 }
 
 void Worker::intercept(char *iface, char *filename){
-
+	this->parseXML(filename);
 }
 
 /**

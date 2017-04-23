@@ -141,7 +141,11 @@ struct interface{
 	unsigned int network;
 	std::vector<string> hostip6;
 };
-
+/*
+struct victims{
+	char
+};
+*/
 class Worker{
 
 public:
@@ -158,6 +162,7 @@ private:
 
 	// General methods
 	void add(std::map<string, std::vector<string>> *dct, string key, string value);
+	void parseXML(char *filename);
 	void loadInterfaceInfo(char *iname);
 	std::vector<string> getLocalIpv6Adresses(char *iface);
 	void scanIpv4Hosts(int tries);

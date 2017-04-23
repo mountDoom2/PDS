@@ -13,7 +13,7 @@ pds-spoof: pds_spoof.cpp
 	$(CXX) -o pds-spoof pds_spoof.cpp $(DEP) $(CXXFLAGS) -lxml2
 	
 pds-intercept: pds_intercept.cpp
-	$(CXX) -o pds-pds-intercept pds_intercept.cpp $(DEP) $(CXXFLAGS) -lxml2
+	$(CXX) -o pds-intercept pds_intercept.cpp $(DEP) $(CXXFLAGS) -lxml2
 
 clean-scanner:
 	rm -f pds-scanner
