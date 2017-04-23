@@ -62,6 +62,7 @@ struct arp_header;
 struct eth_header;
 uint16_t checksum (uint16_t *addr, int len);
 uint16_t icmp6_checksum (struct icmpv6_packet packet);
+uint16_t icmp6_checksum_ns (struct ns_packet packet);
 
 struct __attribute__ ((packed)) arp_header{
     uint16_t hwtype;
@@ -111,6 +112,28 @@ struct __attribute__ ((packed)) icmpv6_packet{
 	struct icmpv6_header icmpv6;
 };
 
+struct __attribute__ ((packed)) icmpv6_option{
+	unsigned char type;
+	unsigned char length;
+	unsigned char data[6]; // Store MAC
+};
+
+struct __attribute__ ((packed))icmpv6_ns_header{
+	unsigned char type;
+	unsigned char code;
+	uint16_t checksum;
+	uint32_t reserved;
+	unsigned char target_address[16];
+	struct icmpv6_option option; // Support max 1 option here is enough
+};
+
+
+struct __attribute__ ((packed)) ns_packet{
+	struct eth_header eth;
+	struct ipv6_header ipv6;
+	struct icmpv6_ns_header icmpv6;
+};
+
 struct interface{
 	char name[IFNAMSIZ];
 	unsigned char mac[6];
@@ -125,7 +148,8 @@ class NetworkScanner{
 
 public:
 	NetworkScanner();
-	void scan(char *iface);
+	void scan(char *iface, char *filename);
+	void spoof(char *iface, char *protocol, unsigned int interval, char *ip1, char *mac1, char *ip2, char *mac2);
 	void write(char *filename);
 
 private:
@@ -143,7 +167,11 @@ private:
 	//void sendIcmpv6(char* src, char* dst);
 	void sendIcmpv6(const char *src_mac, const char *src_ip, const char *dst_mac, const char *dst_ip);
 	int sendNS(char* src, char* dst);
-	void sendARPRequest(unsigned int dst);
+	void sendARPRequest(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst);
+	void sendARPReply(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst);
+	void sendNeighBorSolitication(const char *ip_dst, const char *ip_src, unsigned char *mac_src, unsigned char *mac_dst);
+	void sendNeighBorAdvertisement(unsigned char *mac_src, unsigned char *mac_dst, const char *ip_src, const char *ip_dst, unsigned char *option);
+	//void sendNeighBorAdvertisement(const char *ip_dst, const char *ip_src, unsigned char *mac_src, unsigned char *mac_dst);
 	void receiveARPRequest();
 	void scanIpv4Hosts(int tries);
 	void scanIpv6Hosts(int tries);

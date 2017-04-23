@@ -36,7 +36,8 @@ int main (int argc, char **argv)
 					fprintf (stderr, "Unknown option `-%c'.\n", optopt);
 				return 1;
 			default:
-				abort();
+				fprintf (stderr, "Unknown option '%c'.\n", optopt);
+				return 1;
 		}
 
 	if (filename == NULL){
@@ -50,7 +51,6 @@ int main (int argc, char **argv)
 	}
 
 	NetworkScanner scanner;
-	scanner.scan(interface);
-	scanner.write(filename);
+	scanner.scan(interface, filename);
 	return 0;
 }
