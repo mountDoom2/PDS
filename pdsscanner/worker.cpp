@@ -686,14 +686,10 @@ void Worker::parseXML(char *filename){
 	host = root->children;
 	for (cur_node = host; cur_node; cur_node = cur_node->next) {
 		for (ip = cur_node; ip; ip = ip->next){
-
-	       //if (cur_node->type == XML_ELEMENT_NODE) {
 	          printf("node type: Element, name: %s\n",
 	        		  ip->name);
-	       //}
 		}
 	}
-	printf("here\n");
 }
 
 /*
@@ -715,7 +711,6 @@ void Worker::write(char *filename){
                     BAD_CAST i->c_str());
 		}
 	}
-
     xmlSaveFormatFileEnc(filename, doc, "UTF-8", 1);
 }
 
@@ -787,6 +782,9 @@ void Worker::spoof(char *iface, char *protocol, unsigned int interval, char *ip1
 }
 
 void Worker::intercept(char *iface, char *filename){
+	fprintf(stderr, "Unimplemented method\n");
+	return;
+
 	this->parseXML(filename);
 }
 
