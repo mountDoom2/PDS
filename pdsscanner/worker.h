@@ -144,19 +144,20 @@ struct interface{
 	std::vector<string> hostip6;
 };
 
-class NetworkScanner{
+class Worker{
 
 public:
-	NetworkScanner();
+	Worker();
 	void scan(char *iface, char *filename);
 	void spoof(char *iface, char *protocol, unsigned int interval, char *ip1, char *mac1, char *ip2, char *mac2);
-	void write(char *filename);
+	void intercept(char *iface, char *filename);
+
 
 private:
 	int socketd;
 	interface iface;
 	std::map<string, std::vector<string>> mac_ip;
-
+	void write(char *filename);
 	void add(std::map<string, std::vector<string>> *dct, string key, string value);
 	unsigned int recv_timeout_s;
 	bool socket_opened;
@@ -164,14 +165,12 @@ private:
 	void receiveICMPv6();
 	void printResult();
 	std::vector<string> getLocalIpv6Adresses(char *iface);
-	//void sendIcmpv6(char* src, char* dst);
 	void sendIcmpv6(const char *src_mac, const char *src_ip, const char *dst_mac, const char *dst_ip);
 	int sendNS(char* src, char* dst);
 	void sendARPRequest(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst);
 	void sendARPReply(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst);
 	void sendNeighBorSolitication(const char *ip_dst, const char *ip_src, unsigned char *mac_src, unsigned char *mac_dst);
 	void sendNeighBorAdvertisement(unsigned char *mac_src, unsigned char *mac_dst, const char *ip_src, const char *ip_dst, unsigned char *option);
-	//void sendNeighBorAdvertisement(const char *ip_dst, const char *ip_src, unsigned char *mac_src, unsigned char *mac_dst);
 	void receiveARPRequest();
 	void scanIpv4Hosts(int tries);
 	void scanIpv6Hosts(int tries);

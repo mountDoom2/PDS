@@ -1,6 +1,7 @@
 
+#include "worker.h"
+
 #include <iostream>
-#include "scanner.h"
 
 
 using namespace std;
@@ -49,7 +50,7 @@ void mac_str2bytes(char *str, unsigned char *dst){
 	mac_str2bytes(str, dst);
 }
 
-NetworkScanner::NetworkScanner(){
+Worker::Worker(){
 	socketd = -1;
 	socket_opened = false;
 	memset(&iface, 0, sizeof(struct interface));
@@ -61,7 +62,7 @@ void int_handler(int s){
 	_interrupted = 1;
 }
 
-void NetworkScanner::scan(char *iname, char *filename){
+void Worker::scan(char *iname, char *filename){
 	struct sigaction sig_handler;
 	sig_handler.sa_handler = int_handler;
 	sigemptyset(&sig_handler.sa_mask);
@@ -81,7 +82,7 @@ void NetworkScanner::scan(char *iname, char *filename){
 	this->write(filename);
 }
 
-void NetworkScanner::printResult(){
+void Worker::printResult(){
 	for (auto const& x : this->mac_ip)
 	{
 	    cout << x.first << ": ";
@@ -95,7 +96,7 @@ void NetworkScanner::printResult(){
  * Send ARP request to desired address
  */
 
-void NetworkScanner::sendARPRequest(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst){
+void Worker::sendARPRequest(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst){
 	struct arp_packet arp_request;
 	struct sockaddr_ll sll;
     uint32_t src_ip = htonl(ip_src);
@@ -149,7 +150,7 @@ void NetworkScanner::sendARPRequest(unsigned int ip_dst, unsigned int ip_src, un
 /**
  * Send ARP request to desired address
  */
-void NetworkScanner::sendARPReply(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst){
+void Worker::sendARPReply(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst){
 	struct arp_packet arp_reply;
 	struct sockaddr_ll sll;
     uint32_t src_ip = ip_src;
@@ -200,7 +201,7 @@ void NetworkScanner::sendARPReply(unsigned int ip_dst, unsigned int ip_src, unsi
 
 }
 
-void NetworkScanner::scanIpv4Hosts(int tries){
+void Worker::scanIpv4Hosts(int tries){
 	unsigned int first = (this->iface.subnet_mask & this->iface.hostip) + 1;
 	unsigned int broadcast = this->iface.hostip | (~this->iface.subnet_mask);
 	unsigned char broadcast_mac[6];
@@ -224,7 +225,7 @@ void NetworkScanner::scanIpv4Hosts(int tries){
 	receiver.join();
 }
 
-std::vector<string> NetworkScanner::getLocalIpv6Adresses(char *iface){
+std::vector<string> Worker::getLocalIpv6Adresses(char *iface){
 	vector<string> addresses;
 
 	struct ifaddrs *ifa=NULL,*ifEntry=NULL;
@@ -258,7 +259,7 @@ std::vector<string> NetworkScanner::getLocalIpv6Adresses(char *iface){
 	return addresses;
 }
 
-void NetworkScanner::scanIpv6Hosts(int tries){
+void Worker::scanIpv6Hosts(int tries){
 	if (!this->iface.hostip6.size())
 		return;
 
@@ -311,7 +312,7 @@ void NetworkScanner::scanIpv6Hosts(int tries){
     receiver2.join();
 }
 
-void NetworkScanner::receiveICMPv6(){
+void Worker::receiveICMPv6(){
 	struct icmpv6_packet *ping_response;
 	uint16_t frame[IP_MAXPACKET];
 	unsigned int bytes, i;
@@ -380,7 +381,7 @@ void NetworkScanner::receiveICMPv6(){
 
 }
 
-void NetworkScanner::sendIcmpv6(const char *src_mac, const char *src_ip,
+void Worker::sendIcmpv6(const char *src_mac, const char *src_ip,
 		const char *dst_mac, const char *dst_ip){
 
 	struct icmpv6_packet ping;
@@ -423,7 +424,7 @@ void NetworkScanner::sendIcmpv6(const char *src_mac, const char *src_ip,
 	}
 }
 
-void NetworkScanner::receiveARPRequest(){
+void Worker::receiveARPRequest(){
 	struct arp_packet arp;
 	struct timeval timeout;
 	int sckt, i;
@@ -472,7 +473,7 @@ void NetworkScanner::receiveARPRequest(){
     	close(sckt);
 }
 
-void NetworkScanner::add(std::map<string, std::vector<string>> *dct, string key, string value){
+void Worker::add(std::map<string, std::vector<string>> *dct, string key, string value){
 	if (key.compare(mac_bytes2str(this->iface.mac)) == 0){ // Do not add self
 		return;
 	}
@@ -490,7 +491,7 @@ void NetworkScanner::add(std::map<string, std::vector<string>> *dct, string key,
 	}
 }
 
-void NetworkScanner::openSocket(int packetType, int socketType, int unknown){
+void Worker::openSocket(int packetType, int socketType, int unknown){
 	if (socket_opened)
 		this->closeSocket();
 
@@ -509,7 +510,7 @@ void NetworkScanner::openSocket(int packetType, int socketType, int unknown){
 	socket_opened = true;
 }
 
-void NetworkScanner::closeSocket(){
+void Worker::closeSocket(){
 	if (socket_opened){
 		debug("Closing socket");
 		close(socketd);
@@ -517,7 +518,7 @@ void NetworkScanner::closeSocket(){
 	socket_opened = false;
 }
 
-void NetworkScanner::loadInterfaceInfo(char *iname){
+void Worker::loadInterfaceInfo(char *iname){
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(struct ifreq));
 	debug("Getting information of interface '%s'", iname)
@@ -578,7 +579,7 @@ void NetworkScanner::loadInterfaceInfo(char *iname){
 
 }
 
-void NetworkScanner::write(char *filename){
+void Worker::write(char *filename){
 	xmlNodePtr node = NULL;
 	xmlDocPtr doc = xmlNewDoc(BAD_CAST "1.0");
 	xmlNodePtr devices = xmlNewNode(NULL, BAD_CAST "devices");
@@ -598,9 +599,7 @@ void NetworkScanner::write(char *filename){
     xmlSaveFormatFileEnc(filename, doc, "UTF-8", 1);
 }
 
-
-//void NetworkScanner::sendARPReply(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst){
-void NetworkScanner::spoof(char *iface, char *protocol, unsigned int interval, char *ip1, char *mac1, char *ip2, char *mac2){
+void Worker::spoof(char *iface, char *protocol, unsigned int interval, char *ip1, char *mac1, char *ip2, char *mac2){
 	struct sigaction sig_handler;
 	sig_handler.sa_handler = int_handler;
 	sigemptyset(&sig_handler.sa_mask);
@@ -643,7 +642,11 @@ void NetworkScanner::spoof(char *iface, char *protocol, unsigned int interval, c
 	}
 }
 
-void NetworkScanner::sendNeighBorSolitication(const char *ip_dst, const char *ip_src, unsigned char *mac_src, unsigned char *mac_dst){
+void Worker::intercept(char *iface, char *filename){
+
+}
+
+void Worker::sendNeighBorSolitication(const char *ip_dst, const char *ip_src, unsigned char *mac_src, unsigned char *mac_dst){
 	struct ns_packet ns;
 	memset(&ns, 0, sizeof(struct ns_packet));
 
@@ -686,7 +689,7 @@ void NetworkScanner::sendNeighBorSolitication(const char *ip_dst, const char *ip
 	}
 }
 
-void NetworkScanner::sendNeighBorAdvertisement(unsigned char *mac_src, unsigned char *mac_dst, const char *ip_src, const char *ip_dst, unsigned char *option){
+void Worker::sendNeighBorAdvertisement(unsigned char *mac_src, unsigned char *mac_dst, const char *ip_src, const char *ip_dst, unsigned char *option){
 	struct ns_packet ns;
 	memset(&ns, 0, sizeof(struct ns_packet));
 

@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "scanner.h"
+#include "worker.h"
 
 int main (int argc, char **argv)
 {
@@ -50,7 +50,7 @@ int main (int argc, char **argv)
 
 	}
 
-	NetworkScanner scanner;
+	Worker scanner;
 	scanner.scan(interface, filename);
 	return 0;
 }

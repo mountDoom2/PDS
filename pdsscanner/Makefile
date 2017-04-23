@@ -2,7 +2,7 @@ CXXFLAGS =	-O0 -g -Wall -fmessage-length=0 -pthread -std=c++11 -I/usr/include/li
 SRC = 		$(wildcard *.cpp)
 OBJS =		$(wildcard *.o) 
 TARGET =	pds_scanner
-DEP = scanner.cpp
+DEP = worker.cpp
 
 all: pds-scanner pds-spoof
 
@@ -11,11 +11,14 @@ pds-scanner: pds_scanner.cpp
 
 pds-spoof: pds_spoof.cpp
 	$(CXX) -o pds-spoof pds_spoof.cpp $(DEP) $(CXXFLAGS) -lxml2
+	
+pds-intercept: pds_intercept.cpp
+	$(CXX) -o pds-pds-intercept pds_intercept.cpp $(DEP) $(CXXFLAGS) -lxml2
 
-debug: $(SRC)
-	$(CXX) -o pds-spoof pds_spoof.cpp $(CXXFLAGS) -lxml2 -DDEBUG
 clean-scanner:
 	rm -f pds-scanner
 clean-spoof:
 	rm -f pds-spoof
+clean-intercept:
+	rm -f pds-intercept
 	
