@@ -4,7 +4,8 @@ OBJS =		$(wildcard *.o)
 TARGET =	pds_scanner
 DEP = worker.cpp
 
-all: pds-scanner pds-spoof
+all: pds-scanner pds-spoof pds-intercept
+clean: clean-scanner clean-spoof clean-intercept
 
 pds-scanner: pds_scanner.cpp
 	$(CXX) -o pds-scanner pds_scanner.cpp $(DEP) $(CXXFLAGS) -lxml2
