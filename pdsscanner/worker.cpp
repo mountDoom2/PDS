@@ -19,8 +19,13 @@ int is_valid_ip(char *ip, int type){
 	if (ip == NULL)
 		return 0;
 
-    struct sockaddr_in sa;
-    return inet_pton(type, ip, &(sa.sin_addr));
+	if (type == AF_INET){
+		struct sockaddr_in sa;
+		return inet_pton(type, ip, &(sa.sin_addr));
+	}else{
+		struct sockaddr_in6 sa;
+		return inet_pton(type, ip, &(sa.sin6_addr));
+	}
 }
 
 int is_dotted_mac(char *mac){
