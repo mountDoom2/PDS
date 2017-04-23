@@ -674,24 +674,6 @@ void Worker::loadInterfaceInfo(char *iname){
 
 }
 
-void Worker::parseXML(char *filename){
-	xmlDocPtr doc = xmlReadFile(filename, "UTF-8", 0);
-	xmlNodePtr root = NULL, host = NULL, ip = NULL;
-	xmlNodePtr cur_node = NULL;
-
-	root = xmlDocGetRootElement(doc);
-	if (root == NULL){
-		return;
-	}
-	host = root->children;
-	for (cur_node = host; cur_node; cur_node = cur_node->next) {
-		for (ip = cur_node; ip; ip = ip->next){
-	          printf("node type: Element, name: %s\n",
-	        		  ip->name);
-		}
-	}
-}
-
 /*
  * Create XML document with scanned hosts
  */
@@ -784,8 +766,6 @@ void Worker::spoof(char *iface, char *protocol, unsigned int interval, char *ip1
 void Worker::intercept(char *iface, char *filename){
 	fprintf(stderr, "Unimplemented method\n");
 	return;
-
-	this->parseXML(filename);
 }
 
 /**

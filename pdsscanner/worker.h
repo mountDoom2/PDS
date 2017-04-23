@@ -141,11 +141,7 @@ struct interface{
 	unsigned int network;
 	std::vector<string> hostip6;
 };
-/*
-struct victims{
-	char
-};
-*/
+
 class Worker{
 
 public:
