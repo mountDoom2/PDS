@@ -1,7 +1,20 @@
-
+//============================================================================
+// Name        : worker.h
+// Author      : Milan Skala, xskala09
+// Version     : 1.0
+// Description : Header for Worker object
+//============================================================================
 #ifndef SCANNER_H
 #define SCANNER_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <arpa/inet.h>
+#include <linux/if_packet.h>
+#include <linux/if_ether.h>
+#include <linux/if_arp.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
@@ -15,27 +28,12 @@
 #include <unistd.h>
 #include <thread>
 #include <signal.h>
-#include <vector>
-#include <string>
-#include <algorithm>
+#include <algorithm> // map methods
 
 #include <libxml/tree.h>
 #include <libxml/parser.h>
 
-#include <asm/types.h>
-
-#include <math.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
-#include <arpa/inet.h>
-
-#include <linux/if_packet.h>
-#include <linux/if_ether.h>
-#include <linux/if_arp.h>
-
+using namespace std;
 using std::string;
 
 #ifdef DEBUG
@@ -46,7 +44,6 @@ using std::string;
 
 // IPv4 defines
 #define MAC_LENGTH 6
-#define L2_BROADCAST 0xFFFFFFFF
 #define L2_MULTICAST 0x33330001
 #define IPV6_ADDR_LEN 16
 
@@ -58,12 +55,11 @@ using std::string;
 #define ARP_REPLY 0x02
 #define BUF_SIZE 60
 
-struct arp_header;
-struct eth_header;
 uint16_t checksum (uint16_t *addr, int len);
 uint16_t icmp6_checksum (struct icmpv6_packet packet);
 uint16_t icmp6_checksum_ns (struct ns_packet packet);
 
+// Contains just ARP header
 struct __attribute__ ((packed)) arp_header{
     uint16_t hwtype;
     uint16_t prottype;
@@ -118,6 +114,7 @@ struct __attribute__ ((packed)) icmpv6_option{
 	unsigned char data[6]; // Store MAC
 };
 
+// ICMPv6 header with option
 struct __attribute__ ((packed))icmpv6_ns_header{
 	unsigned char type;
 	unsigned char code;
@@ -127,13 +124,14 @@ struct __attribute__ ((packed))icmpv6_ns_header{
 	struct icmpv6_option option; // Support max 1 option here is enough
 };
 
-
+// Packet for neighbor solicitation/advertisement
 struct __attribute__ ((packed)) ns_packet{
 	struct eth_header eth;
 	struct ipv6_header ipv6;
 	struct icmpv6_ns_header icmpv6;
 };
 
+// Stores info about current interface
 struct interface{
 	char name[IFNAMSIZ];
 	unsigned char mac[6];
@@ -152,33 +150,31 @@ public:
 	void spoof(char *iface, char *protocol, unsigned int interval, char *ip1, char *mac1, char *ip2, char *mac2);
 	void intercept(char *iface, char *filename);
 
-
 private:
 	int socketd;
+	bool socket_opened;
 	interface iface;
 	std::map<string, std::vector<string>> mac_ip;
-	void write(char *filename);
+
+	// General methods
 	void add(std::map<string, std::vector<string>> *dct, string key, string value);
-	unsigned int recv_timeout_s;
-	bool socket_opened;
 	void loadInterfaceInfo(char *iname);
-	void receiveICMPv6();
-	void printResult();
 	std::vector<string> getLocalIpv6Adresses(char *iface);
-	void sendIcmpv6(const char *src_mac, const char *src_ip, const char *dst_mac, const char *dst_ip);
-	int sendNS(char* src, char* dst);
-	void sendARPRequest(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst);
-	void sendARPReply(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst);
-	void sendNeighBorSolitication(const char *ip_dst, const char *ip_src, unsigned char *mac_src, unsigned char *mac_dst);
-	void sendNeighBorAdvertisement(unsigned char *mac_src, unsigned char *mac_dst, const char *ip_src, const char *ip_dst, unsigned char *option);
-	void receiveARPRequest();
 	void scanIpv4Hosts(int tries);
 	void scanIpv6Hosts(int tries);
+	void write(char *filename);
 	void openSocket(int packetType, int socketType, int unknown);
 	void closeSocket();
-	unsigned int reorderIPv4(unsigned int ip);
-	void printIPv4(unsigned int ip);
+	void printResult();
+	// IPv4
+	void sendARPRequest(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst);
+	void sendARPReply(unsigned int ip_dst, unsigned int ip_src, unsigned char *mac_src, unsigned char *mac_dst);
+	void receiveARPReply();
+	// IPv6
+	void sendIcmpv6(const char *src_mac, const char *src_ip, const char *dst_mac, const char *dst_ip);
+	void sendNeighborSolicitation(const char *ip_dst, const char *ip_src, unsigned char *mac_src, unsigned char *mac_dst);
+	void sendNeighborAdvertisement(unsigned char *mac_src, unsigned char *mac_dst, const char *ip_src, const char *ip_dst, unsigned char *option);
+	void receiveICMPv6();
 };
-
 
 #endif

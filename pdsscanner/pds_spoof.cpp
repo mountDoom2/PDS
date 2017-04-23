@@ -1,9 +1,8 @@
 //============================================================================
-// Name        : PDS_1.cpp
-// Author      : Milan Skala
-// Version     :
-// Copyright   : Your copyright notice
-// Description : Hello World in C, Ansi-style
+// Name        : pds_spoof.cpp
+// Author      : Milan Skala, xskala09
+// Version     : 1.0
+// Description : Program spoofs two victims by poisining its ARP or ND caches
 //============================================================================
 
 #include <ctype.h>
@@ -19,12 +18,11 @@ using namespace std;
 
 int main (int argc, char **argv)
 {
-	char *interface = NULL;
+	char *interface = NULL, *protocol = NULL;
 	unsigned int interval = 0;
-	char *protocol = NULL;
 	char *ip1 = NULL, *mac1 = NULL, *ip2 = NULL, *mac2 = NULL;
-	int c;
-	int i = 0;
+	int c, i = 0;
+	// These arguments are passed as long options
 	static struct option long_options[] = {
 		{"victim1ip", 1, 0, 0 },
 		{"victim1mac", 1, 0, 0 },
@@ -77,7 +75,7 @@ int main (int argc, char **argv)
 		fprintf(stderr, "Missing MAC or IP address\n");
 	}
 	if (interval == 0){
-		fprintf(stderr, "Invalid spoof interval, must be non-zero value\n");
+		fprintf(stderr, "Invalid spoof interval, must be non-zero value.\n");
 	}
 
 	Worker scanner;

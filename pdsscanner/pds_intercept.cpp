@@ -1,9 +1,8 @@
 //============================================================================
-// Name        : pds_scanner.cpp
+// Name        : pds_intercept.cpp
 // Author      : Milan Skala, xskala09
-// Version     : 1.0
-// Description : Program scans network and creates XML document with found hosts
-//				 Both IPv4 and IPv6 host scan is enabled.
+// Version     : 0.1
+// Description : Program loads XML document with marked victims and intercepts their communication
 //============================================================================
 
 #include <ctype.h>
@@ -51,6 +50,6 @@ int main (int argc, char **argv)
 	}
 
 	Worker scanner;
-	scanner.scan(interface, filename);
+	scanner.intercept(interface, filename);
 	return 0;
 }
